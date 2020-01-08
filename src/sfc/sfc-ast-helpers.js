@@ -8,13 +8,13 @@ exports.getNextJSXElment = function getNextJSXElment (path) {
             break;
         } else if (t.isJSXElement(nextPath.node)) {
             nextElement = nextPath.node;
-            nextPath.traverse({
-                JSXAttribute (p) {
-                    if (p.node.name.name === 'v-else') {
-                        p.remove();
-                    }
-                }
-            });
+            // nextPath.traverse({
+            //     JSXAttribute (p) {
+            //         if (p.node.name.name === 'v-else') {
+            //             p.remove();
+            //         }
+            //     }
+            // });
             nextPath.remove();
             break;
         }

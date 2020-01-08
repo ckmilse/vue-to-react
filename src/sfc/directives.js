@@ -4,27 +4,68 @@ const { getNextJSXElment } = require('./sfc-ast-helpers');
 const { log, getIdentifier } = require('../utils');
 const eventMap = require('./event-map');
 
+// 如果 v-if v-else-if v-else 并列执行。而不是v-if里面立即执行v-if里面的v-if
+// 
+const tempConditionMap = new Map();
 exports.handleIfDirective = function handleIfDirective (path, value, state) {
+    // 清空它
     const parentPath = path.parentPath.parentPath;
-    const childs = parentPath.node.children;
-
-    // Get JSXElment of v-else
-    const nextElement = getNextJSXElment(parentPath);
+    // console.log(parentPath);
+    tempConditionMap.set(JSON.stringify(parentPath.parentPath.node.loc), []);
     const test = state.computeds[value] ? t.identifier(value) : t.memberExpression(
         t.memberExpression(t.thisExpression(), getIdentifier(state, value)),
         t.identifier(value)
     );
-
+    tempConditionMap.get(JSON.stringify(parentPath.parentPath.node.loc)).push(test);
     parentPath.replaceWith(
         t.jSXExpressionContainer(
             t.conditionalExpression(
                 test,
                 parentPath.node,
-                nextElement ? nextElement : t.nullLiteral()
+                t.nullLiteral()
             )
         )
     );
+    path.remove();
+};
+exports.handleElseIfDirective = function handleIfDirective (path, value, state) {
+    const parentPath = path.parentPath.parentPath;
+    const childs = parentPath.node.children;
 
+    // Get JSXElment of v-else
+    // const nextElement = getNextJSXElment(parentPath);
+
+    // 真正的test 应该是 tempConditionMap.get(parentPath) 里面的所有条件取非
+    // 并且这个地方的test 取正
+    const test = state.computeds[value] ? t.identifier(value) : t.memberExpression(
+        t.memberExpression(t.thisExpression(), getIdentifier(state, value)),
+        t.identifier(value)
+    );
+    console.log('handleElseIfDirective', test);
+    parentPath.replaceWith(
+        t.jSXExpressionContainer(
+            t.conditionalExpression(
+                !test,
+                parentPath.node,
+                t.nullLiteral()
+            )
+        )
+    );
+    tempConditionMap.get(JSON.stringify(parentPath.node.loc)).push(test);
+    path.remove();
+};
+exports.handleElseDirective = function handleIfDirective (path, value, state) {
+    const parentPath = path.parentPath.parentPath;
+    parentPath.replaceWith(
+        t.jSXExpressionContainer(
+            t.conditionalExpression(
+                tempConditionMap.get(JSON.stringify(parentPath.parentPath.node.loc))[0],
+                // test,
+                t.nullLiteral(),
+                parentPath.node
+            )
+        )
+    );
     path.remove();
 };
 
@@ -59,7 +100,6 @@ exports.handleOnDirective = function handleOnDirective (path, name, value) {
         log(`Not support event name`);
         return;   
     }
-
     path.replaceWith(
         t.jSXAttribute(
             t.jSXIdentifier(eventName),
@@ -206,5 +246,5 @@ exports.handleHTMLDirective = function handleHTMLDirective (path, value, state) 
                 )
             )
         )
-    )
+    );
 };

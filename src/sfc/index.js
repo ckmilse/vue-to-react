@@ -4,7 +4,8 @@ const babelTraverse = require('babel-traverse').default;
 
 const { log, getIdentifier } = require('../utils');
 const { 
-    handleIfDirective, handleShowDirective, handleOnDirective,
+    handleIfDirective, handleElseIfDirective, handleElseDirective,
+    handleShowDirective, handleOnDirective,
     handleForDirective, handleTextDirective, handleHTMLDirective,
     handleBindDirective
 } = require('./directives');
@@ -13,7 +14,7 @@ module.exports = function traverseTemplate (template, state) {
     let argument = null;
     // cache some variables are defined in v-for directive
     const definedInFor = [];
-
+    // console.log(state);
     // AST for template in sfc
     const tast = babylon.parse(template, {
         sourceType: 'module',
@@ -32,12 +33,13 @@ module.exports = function traverseTemplate (template, state) {
 
         JSXAttribute (path) {
             const node = path.node;
-            const value = node.value.value;
-
+            // console.log('node.value\n', node.value);
+            const value = node.value ? node.value.value : 'true';
+            // console.log(value);
             if (!node.name) {
                 return;
             }
-
+            // console.log('node.name.name', node.name.name);
             if (node.name.name === 'class') {
                 path.replaceWith(
                     t.jSXAttribute(t.jSXIdentifier('className'), node.value)
@@ -46,7 +48,12 @@ module.exports = function traverseTemplate (template, state) {
                 return; // path.stop();
             } else if (node.name.name === 'v-if') {
                 handleIfDirective(path, value, state);
-            } else if (node.name.name === 'v-show') {
+            } else if (node.name.name === 'v-else-if') {
+                handleElseIfDirective(path, value, state);
+            } else if (node.name.name === 'v-else') {
+                console.log('v-else')
+                handleElseDirective(path, value, state);
+            }else if (node.name.name === 'v-show') {
                 handleShowDirective(path, value, state);
             } else if (t.isJSXNamespacedName(node.name)) {
                 // v-bind/v-on
